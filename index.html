@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shoreline Strategy — The 4R Challenge</title>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#0b1224; --edge:#1f2a44; --text:#e5e7eb; --muted:#9ca3af;
+      --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; --accent:#22d3ee;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background:radial-gradient(1200px 600px at 60% 10%, #1f2937 0%, #0b1022 60%, #050816 100%); color:var(--text)}
+    header{display:flex; gap:12px; align-items:center; padding:16px 20px; border-bottom:1px solid #1f2937}
+    header h1{font-size:20px; margin:0}
+    header .pill{border:1px solid #334155; padding:6px 10px; border-radius:999px; color:var(--muted); font-size:12px}
+
+    .wrap{display:grid; grid-template-columns:320px 1fr; gap:16px; padding:16px}
+    .panel{background:linear-gradient(180deg,#0e1328,#0b1224); border:1px solid var(--edge); border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .panel h2{font-size:16px; margin:0 0 8px 0; color:#cbd5e1}
+
+    .control{background:#0a1326; border:1px solid var(--edge); border-radius:12px; padding:12px; margin-bottom:12px}
+    .control label{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:6px}
+    .control input[type=range]{width:100%}
+
+    .tools{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .tool{background:#0a1222; border:1px dashed #334155; border-radius:12px; padding:10px; display:flex; gap:8px; align-items:center; cursor:pointer}
+    .tool .emoji{font-size:20px}
+    .tool small{display:block; color:var(--muted)}
+
+    .board{background:linear-gradient(180deg,#061022 0%, #06162c 100%); border:1px solid var(--edge); border-radius:16px; padding:16px; display:grid; gap:12px; grid-template-rows:auto auto 1fr auto}
+    .hud{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
+    .badge{border:1px solid var(--edge); padding:6px 10px; border-radius:999px; color:#cbd5e1; font-size:12px}
+
+    .segments{display:grid; grid-template-columns: repeat(5, 1fr); gap:10px}
+    .seg{position:relative; background:#0a1222; border:1px solid #0b162a; border-radius:12px; padding:10px; display:grid; grid-template-rows:auto 1fr auto; gap:8px}
+    .seg h3{margin:0; font-size:13px; color:#bfdbfe}
+    .strip{height:120px; position:relative; border:1px solid #10233e; border-radius:10px; overflow:hidden; background:linear-gradient(0deg, #0b1c33 0%, #0e2442 50%, #0b1c33 100%)}
+    .beach{position:absolute; left:0; bottom:0; width:100%; height:40%; background:linear-gradient(180deg,#eab308,#d97706); transition:height .3s}
+    .dune{position:absolute; left:8px; bottom:calc(40% + 2px); width:calc(100% - 16px); height:10px; background:linear-gradient(180deg,#7c3aed,#6d28d9); border-radius:8px; opacity:.8; transition:bottom .3s}
+    .overtop{position:absolute; inset:0; background:repeating-linear-gradient(45deg, rgba(239,68,68,.0) 0 10px, rgba(239,68,68,.3) 10px 20px); display:none}
+    .icons{position:absolute; top:6px; right:6px; display:flex; gap:4px; font-size:16px}
+    .metrics{font-size:12px; color:#cbd5e1; display:flex; justify-content:space-between}
+
+    .seg .actions{display:grid; grid-template-columns:repeat(2,1fr); gap:6px}
+    .seg button{background:#0ea5e9; border:none; padding:8px 8px; color:white; border-radius:10px; cursor:pointer; font-weight:600; font-size:12px}
+    .seg button.secondary{background:#0b1224; border:1px solid #1f2a44; color:#e2e8f0}
+
+    .footer{display:flex; gap:10px; align-items:center}
+    .footer button{background:#22c55e; border:none; padding:10px 12px; color:white; border-radius:10px; cursor:pointer; font-weight:700}
+    .footer button.secondary{background:#0b1224; border:1px solid #1f2a44}
+    .footer .status{margin-left:auto; color:#cbd5e1; font-size:13px}
+
+    .log{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; color:#a5b4fc; background:#0b1224; border:1px solid #1f2a44; border-radius:10px; padding:10px; height:120px; overflow:auto}
+
+    .summary{display:none; background:#0a1326; border:1px solid var(--edge); border-radius:12px; padding:12px}
+    .summary h3{margin:0 0 8px 0}
+    .summary ul{margin:0 0 0 18px}
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌊 Shoreline Strategy — The 4R Challenge</h1>
+    <span class="pill">Protect 5 coast segments over 3 years. Balance risk, budget, and fairness.</span>
+  </header>
+
+  <div class="wrap">
+    <aside class="panel">
+      <h2>Controls</h2>
+      <div class="control">
+        <label for="slr"><span>Sea-level rise / chronic recession</span><span id="slrVal">1.5 m/yr eq.</span></label>
+        <input id="slr" type="range" min="0" max="3" step="0.1" value="1.5" />
+        <small style="color:var(--muted)">First-order Bruun-type: larger values increase annual beach width recession.</small>
+      </div>
+      
+      <div class="control">
+        <label for="storm"><span>Storm erosion (per storm season)</span><span id="stormVal">8.0 m</span></label>
+        <input id="storm" type="range" min="0" max="15" step="0.5" value="8" />
+        <small style="color:var(--muted)">Controls baseline storm-season loss; tools then multiply this up/down.</small>
+      </div>
+<div class="control">
+        <label><span>Tools (4R)</span><span>Click a segment to apply</span></label>
+        <div class="tools">
+          <div class="tool" data-tool="resist" tabindex="0" title="Seawall / Revetment — Cost 30, reduces storm loss & overtopping; may steepen profile">
+            <span class="emoji">🧱</span>
+            <div><strong>Resist</strong><small>seawall / revetment</small></div>
+          </div>
+          <div class="tool" data-tool="redirect" tabindex="0" title="Groynes / Headland — Cost 20, traps sand; causes downdrift deficit">
+            <span class="emoji">🪨</span>
+            <div><strong>Redirect</strong><small>groynes / headland</small></div>
+          </div>
+          <div class="tool" data-tool="recharge" tabindex="0" title="Nourishment — Cost 15, adds beach width; decays each year">
+            <span class="emoji">🏖️</span>
+            <div><strong>Recharge</strong><small>nourishment</small></div>
+          </div>
+          <div class="tool" data-tool="restore" tabindex="0" title="Dunes / Vegetation — Cost 15, raises dune crest; reduces storm loss over time">
+            <span class="emoji">🌱</span>
+            <div><strong>Restore</strong><small>dunes / mangroves</small></div>
+          </div>
+        </div>
+      </div>
+      <div class="control">
+        <label><span>Round log</span><span id="budget">Budget: 100</span></label>
+        <div id="log" class="log" aria-live="polite"></div>
+      </div>
+    </aside>
+
+    <main class="board">
+      <div class="hud">
+        <span class="badge" id="yearBadge">Year 1 of 3</span>
+        <span class="badge" id="fairBadge">Downdrift fairness: —</span>
+        <span class="badge">Indicators: watch for scarping, toe exposure, overtopping</span>
+      </div>
+
+      <div class="segments" id="segments"></div>
+
+      <div class="summary" id="summary">
+        <h3>After‑action summary</h3>
+        <ul id="summaryList"></ul>
+      </div>
+
+      <div class="footer">
+        <button id="runBtn">▶ Run Year</button>
+        <button id="resetBtn" class="secondary">↺ Reset</button>
+        <span class="status" id="status">Storm → Calm cycle will run; effects accumulate; lifetimes tick down.</span>
+      </div>
+    </main>
+  </div>
+
+  <template id="segTmpl">
+    <div class="seg">
+      <h3>Segment</h3>
+      <div class="strip">
+        <div class="beach"></div>
+        <div class="dune"></div>
+        <div class="overtop"></div>
+        <div class="icons" aria-hidden="true"></div>
+      </div>
+      <div class="metrics"><span class="m-width">Beach: — m</span><span class="m-dune">Dune: — m</span></div>
+      <div class="actions">
+        <button data-tool="resist">Resist</button>
+        <button data-tool="redirect">Redirect</button>
+        <button data-tool="recharge">Recharge</button>
+        <button data-tool="restore">Restore</button>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    // --- Model parameters (simple pedagogical model) ---
+    const YEARS = 3;
+    const N = 5;
+    const INIT_WIDTH = 30;   // m beach width
+    const INIT_DUNE = 2.0;   // m crest height above datum
+
+    const COST = {resist:30, redirect:20, recharge:15, restore:15};
+    const LIFE = {resist:3, redirect:3, recharge:1, restore:3};
+
+    // Effects (per storm/calm)
+    const EFFECTS = {
+      resist: {stormLossMul:0.6, overtopMul:0.5},
+      redirect: {trapGain:2.0, downdriftLoss:2.0},
+      recharge: {addWidth:8, annualDecay:0.3},
+      restore: {duneGain:0.8, stormLossMul:0.85}
+    };
+
+    let budget = 100;
+    let year = 1;
+    let slrVal = 1.5; // m/yr equivalent recession (pedagogical scale)
+    let stormVal = 8; // m baseline storm-season loss (adjustable)
+
+    const segState = Array.from({length:N}, (_,i)=>({
+      width: INIT_WIDTH + (i===2? -4:0),      // small initial variability
+      dune: INIT_DUNE + (i===1? 0.5:0),
+      tools: {resist:0, redirect:0, recharge:0, restore:0},
+      indicators: {scarp:false, overtopped:false, toe:false}
+    }));
+
+    const els = {
+      segments: document.getElementById('segments'),
+      segTmpl: document.getElementById('segTmpl'),
+      budget: document.getElementById('budget'),
+      log: document.getElementById('log'),
+      run: document.getElementById('runBtn'),
+      reset: document.getElementById('resetBtn'),
+      slr: document.getElementById('slr'),
+      slrVal: document.getElementById('slrVal'),
+      storm: document.getElementById('storm'),
+      stormVal: document.getElementById('stormVal'),
+      year: document.getElementById('yearBadge'),
+      fair: document.getElementById('fairBadge'),
+      summary: document.getElementById('summary'),
+      summaryList: document.getElementById('summaryList')
+    };
+
+    const toolEmoji = {resist:'🧱', redirect:'🪨', recharge:'🏖️', restore:'🌱'};
+
+    function build(){
+      els.segments.innerHTML = '';
+      for(let i=0;i<N;i++){
+        const node = els.segTmpl.content.firstElementChild.cloneNode(true);
+        node.dataset.index = i;
+        node.querySelector('h3').textContent = `Segment ${i+1}`;
+        node.querySelectorAll('.actions button').forEach(btn=>{
+          btn.addEventListener('click', ()=> applyTool(i, btn.dataset.tool));
+        });
+        els.segments.appendChild(node);
+      }
+      render();
+    }
+
+    function applyTool(i, tool){
+      const cost = COST[tool];
+      if(budget < cost){ flash(`Not enough budget to apply ${tool} at segment ${i+1}`); return; }
+      segState[i].tools[tool] = Math.max(segState[i].tools[tool], LIFE[tool]);
+      budget -= cost;
+      log(`Applied ${tool} at seg ${i+1} (cost ${cost})`);
+      render();
+    }
+
+    function runYear(){
+      if(year>YEARS){ flash('All years completed. Reset to play again.'); return; }
+      log(`\n=== Year ${year}: Storm season ===`);
+      stormSeason();
+      log(`=== Year ${year}: Calm season ===`);
+      calmSeason();
+      log(`=== Year ${year}: Chronic recession (SLR) ===`);
+      chronicRecession();
+      // Decay lifetimes & nourishment
+      for(const s of segState){
+        if(s.tools.recharge>0){
+          s.width -= EFFECTS.recharge.addWidth * EFFECTS.recharge.annualDecay; // decay of nourishment stock
+        }
+        for(const k of Object.keys(s.tools)){
+          if(s.tools[k]>0) s.tools[k] -= 1;
+        }
+      }
+      render();
+      year++;
+      els.year.textContent = `Year ${Math.min(year,YEARS)} of ${YEARS}`;
+      if(year>YEARS){ finalize(); }
+    }
+
+    function stormSeason(){
+      // base storm loss
+      const base = stormVal; // baseline from slider
+      for(let i=0;i<N;i++){
+        let loss = base;
+        // Resist/Restore reduce storm loss
+        if(segState[i].tools.resist>0) loss *= EFFECTS.resist.stormLossMul;
+        if(segState[i].tools.restore>0) loss *= EFFECTS.restore.stormLossMul;
+        segState[i].width -= loss;
+        // Overtopping chance if beach too narrow or dune too low
+        const narrow = segState[i].width < 10;
+        const lowDune = segState[i].dune < 1.5;
+        let pOver = (narrow?0.5:0.2) + (lowDune?0.3:0);
+        if(segState[i].tools.resist>0) pOver *= EFFECTS.resist.overtopMul;
+        const over = Math.random() < pOver;
+        segState[i].indicators.overtopped = over;
+        segState[i].indicators.scarp = loss>6;
+        segState[i].indicators.toe = segState[i].width < 6;
+      }
+      // Redirect effects: updrift gain, downdrift loss
+      for(let i=0;i<N;i++){
+        if(segState[i].tools.redirect>0){
+          segState[i].width += EFFECTS.redirect.trapGain;
+          if(i<N-1) segState[i+1].width -= EFFECTS.redirect.downdriftLoss; // penalty down-drift
+        }
+      }
+      // Nourishment immediate effect each time it is (re)applied within the year
+      for(let i=0;i<N;i++){
+        if(segState[i].tools.recharge>0 && segState[i].tools.recharge===LIFE.recharge){
+          segState[i].width += EFFECTS.recharge.addWidth;
+        }
+      }
+    }
+
+    function calmSeason(){
+      // modest recovery of berms
+      for(const s of segState){ s.width += 3; }
+      // Restore grows dune
+      for(const s of segState){ if(s.tools.restore>0) s.dune += EFFECTS.restore.duneGain; }
+      // Resist may slightly reduce recovery due to profile steepness (pedagogical)
+      for(const s of segState){ if(s.tools.resist>0) s.width -= 1; }
+    }
+
+    function chronicRecession(){
+      for(const s of segState){ s.width -= slrVal; }
+    }
+
+    function finalize(){
+      const fairness = computeFairness();
+      const risk = totalRisk();
+      const spent = 100 - budget;
+      const score = Math.max(0, Math.round(200 - risk*5 - spent*0.8 - fairness*10));
+      log(`\n=== Summary ===\nSpent ${spent}, risk ${risk.toFixed(1)}, fairness ${fairness.toFixed(2)} → Score ${score}`);
+      // Build summary list
+      els.summaryList.innerHTML = '';
+      segState.forEach((s, i)=>{
+        const li = document.createElement('li');
+        const flags = [];
+        if(s.indicators.overtopped) flags.push('overtopped');
+        if(s.indicators.scarp) flags.push('scarped');
+        if(s.indicators.toe) flags.push('toe exposed');
+        li.textContent = `Seg ${i+1}: beach ${s.width.toFixed(1)} m, dune ${s.dune.toFixed(1)} m${flags.length? ' — ' + flags.join(', '):''}`;
+        els.summaryList.appendChild(li);
+      });
+      els.summary.style.display = 'block';
+    }
+
+    function computeFairness(){
+      const w = segState.map(s=>Math.max(0,s.width));
+      const mean = w.reduce((a,b)=>a+b,0)/w.length;
+      const variance = w.reduce((a,b)=>a + (b-mean)*(b-mean),0)/w.length;
+      const std = Math.sqrt(variance);
+      els.fair.textContent = `Downdrift fairness: σ=${std.toFixed(2)} m`;
+      return std;
+    }
+
+    function totalRisk(){
+      // risk from very narrow beaches and low dunes, plus overtopping events
+      let r = 0;
+      for(const s of segState){
+        r += Math.max(0, 12 - s.width); // narrower -> higher risk
+        r += Math.max(0, 2 - s.dune) * 2;
+        if(s.indicators.overtopped) r += 5;
+      }
+      return r;
+    }
+
+    function render(){
+      const nodes = [...els.segments.children];
+      for(let i=0;i<N;i++){
+        const node = nodes[i];
+        const s = segState[i];
+        const beach = node.querySelector('.beach');
+        const dune = node.querySelector('.dune');
+        const icons = node.querySelector('.icons');
+        const over = node.querySelector('.overtop');
+        const widthPct = Math.max(0, Math.min(100, (s.width/40)*100));
+        beach.style.height = `${20 + widthPct * 0.6}%`;
+        dune.style.bottom = `calc(${20 + widthPct * 0.6}% + 2px)`;
+        node.querySelector('.m-width').textContent = `Beach: ${s.width.toFixed(1)} m`;
+        node.querySelector('.m-dune').textContent = `Dune: ${s.dune.toFixed(1)} m`;
+        // icons for active tools this year
+        icons.textContent = '';
+        for(const [k,v] of Object.entries(s.tools)){
+          if(v>0){ const span = document.createElement('span'); span.textContent = toolEmoji[k]; icons.appendChild(span); }
+        }
+        over.style.display = s.indicators.overtopped? 'block':'none';
+        // color border for stressed/deficit
+        node.style.boxShadow = s.width<8 ? '0 0 0 2px var(--bad) inset' : (s.width<15? '0 0 0 2px var(--warn) inset':'none');
+      }
+      els.budget.textContent = `Budget: ${budget}`;
+      computeFairness();
+    }
+
+    function log(msg){ els.log.textContent += (els.log.textContent?"\n":"") + msg; els.log.scrollTop = els.log.scrollHeight; }
+    function flash(msg){ log(msg); }
+
+    // event bindings
+    els.run.addEventListener('click', runYear);
+    els.reset.addEventListener('click', ()=>{ location.reload(); });
+    els.slr.addEventListener('input', ()=>{ slrVal = +els.slr.value; els.slrVal.textContent = `${slrVal.toFixed(1)} m/yr eq.`; });
+
+    // Storm slider binding
+    els.storm.addEventListener('input', ()=>{ stormVal = +els.storm.value; els.stormVal.textContent = `${stormVal.toFixed(1)} m`; });
+
+    // init
+    build();
+    // initialize slider displays
+    els.slrVal.textContent = `${(+els.slr.value).toFixed(1)} m/yr eq.`;
+    els.stormVal.textContent = `${(+els.storm.value).toFixed(1)} m`;
+  </script>
+</body>
+</html>
